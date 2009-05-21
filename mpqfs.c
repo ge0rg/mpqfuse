@@ -202,6 +202,11 @@ static struct fuse_operations mpq_oper = {
 
 int main(int argc, char *argv[])
 {
+	if (argc < 2) {
+		fprintf(stderr, "Usage\n%s <archive.mpq> [-d] <mountpoint>\n",
+				argv[0]);
+		return 1;
+	}
 	if (libmpq__archive_open(&archive, argv[1], -1) != 0) {
 		perror("libmpq__archive_open()");
 		return 1;
@@ -210,7 +215,7 @@ int main(int argc, char *argv[])
 	uint32_t listfile_number;
 	off_t listfile_size;
 	if (libmpq__file_number(archive, "(listfile)", &listfile_number) != 0) {
-		printf("No listfile in '%s'.\n", argv[0]);
+		fprintf(stderr, "No listfile in '%s'.\n", argv[1]);
 		libmpq__archive_close(archive);
 		return 1;
 	}
