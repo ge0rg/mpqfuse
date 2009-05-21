@@ -1,6 +1,6 @@
 /*
  * mpqfs: FUSE module for libmpq
- * Copyright (C) 2008 Georg Lukas <georg@op-co.de>
+ * Copyright (C) 2009 Georg Lukas <georg@op-co.de>
  *
  * This program can be distributed under the terms of the GNU GPL.
  *
@@ -11,7 +11,6 @@
  * $ ./mpqfs <archive> [-d] <mountpoint>
  *
  * THIS CODE IS A HACK. ERROR HANDLING TO BE IMPLEMENTED LATER.
- * PROPER DIRECTORY STRUCTURE? FORGET IT FOR NOW!
  */
 
 #include <stdio.h>
