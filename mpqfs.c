@@ -49,16 +49,17 @@ uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, struct mpq_dir *dir) {
 	}
 	dir->files = malloc(sizeof(char*) * dir->file_c);
 	assert(dir->files != NULL);
+	memset(dir->files, 0, sizeof(char*) * dir->file_c);
 
 	char *filename = strtok(listfile, "\r\n");
 	uint32_t fn;
 	while (filename) {
 		if (libmpq__file_number(a, filename, &fn) != 0) {
-			printf("------- %s\n", filename);
+			printf("missing %s\n", filename);
 		} else {
 			assert(fn < dir->file_c);
 			if (dir->files[fn])
-				printf("XXXXXXX %s\n", filename);
+				printf("double %s (%s)\n", filename, dir->files[fn]);
 			else
 				dir->files[fn] = filename;
 		}
