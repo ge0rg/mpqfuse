@@ -232,9 +232,17 @@ static int mpq_open(const char *path, struct fuse_file_info *fi)
 		return -EACCES;
 
 	fi->fh = file->fn;
+	libmpq__block_open_offset(archive, fi->fh);
 
 	return 0;
 }
+
+static int mpq_close(const char *path, struct fuse_file_info *fi)
+{
+	libmpq__block_close_offset(archive, fi->fh);
+	return 0;
+}
+
 
 static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
@@ -255,13 +263,15 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 
 		off_t blocksize;
 
-		libmpq__block_open_offset(archive, fn);
 		libmpq__block_unpacked_size(archive, fn, 0, &blocksize);
 
 		uint32_t blocknumber = offset / blocksize;
 
 		/* check if the start is in the middle of a block */
 		uint32_t prefix = (offset % blocksize);
+
+		DPRINTF("mpq_read('%s'): block=%d prefix=%d size=%d bs=%d\n",
+				path, blocknumber, prefix, size, blocksize);
 		if (prefix != 0) {
 			/* we have to get the middle of a data block manually */
 			uint8_t *data = malloc(blocksize);
@@ -283,7 +293,6 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 					MIN(blocksize, size - copied), &trans);
 			copied += trans;
 		}
-		libmpq__block_close_offset(archive, fn);
 	}
 
 	return copied;
@@ -293,6 +302,7 @@ static struct fuse_operations mpq_oper = {
     .getattr	= mpq_getattr,
     .readdir	= mpq_readdir,
     .open	= mpq_open,
+    .release	= mpq_close,
     .read	= mpq_read,
 };
 
