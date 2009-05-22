@@ -1,4 +1,4 @@
-CFLAGS=-Wall -D_FILE_OFFSET_BITS=64
-LDFLAGS=-lfuse -lmpq
+CFLAGS=-Wall $(shell libmpq-config --cflags)
+LDFLAGS=-lfuse $(shell libmpq-config --libs)
 
 all: mpqfuse
