@@ -1,14 +1,14 @@
 /*
- * mpqfs: FUSE module for libmpq
+ * mpqfuse: FUSE module for libmpq
  * Copyright (C) 2009 Georg Lukas <georg@op-co.de>
  *
  * This program can be distributed under the terms of the GNU GPL.
  *
  * Compilation:
- * $ cc -D_FILE_OFFSET_BITS=64  -lfuse -lmpq  mpqfs.c   -o mpqfs
+ * $ cc -D_FILE_OFFSET_BITS=64  -lfuse -lmpq  mpqfuse.c   -o mpqfuse
  *
  * Usage:
- * $ ./mpqfs <archive> [-d] <mountpoint>
+ * $ ./mpqfuse <archive> [-d] <mountpoint>
  *
  * THIS CODE IS A HACK. ERROR HANDLING TO BE IMPLEMENTED LATER.
  */
