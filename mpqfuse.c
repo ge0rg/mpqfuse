@@ -27,7 +27,7 @@
 #define MIN(a, b) (((a) < (b))? (a) : (b))
 
 #ifdef DEBUG
-#define DPRINTF(fmt...) fprintf(stderr, ##fmt)
+#define DPRINTF(fmt, param...) fprintf(stderr, "*** %s: " fmt, __FUNCTION__, ##param)
 #else
 #define DPRINTF(...)
 #endif
@@ -49,6 +49,7 @@ struct mpq_dir {
 char *implicit[] = {
 	"(listfile)",
 	"(attributes)",
+	"(signature)",
 	"(signatures)",
 	NULL
 };
@@ -94,7 +95,7 @@ struct mpq_dir *open_file_dir(struct mpq_dir *root, char **filename, int createn
 	while ((next = strpbrk(*filename, "/\\")) != NULL) {
 		snprintf(dirbuf, 2048, "%.*s", next - *filename, *filename);
 		dir = open_subdir(dir, dirbuf, createnew);
-		DPRINTF("subdir %s: %p\n", dirbuf, dir);
+		//DPRINTF("subdir %s: %p\n", dirbuf, dir);
 		if (dir == NULL)
 			return NULL;
 		*filename = next+1;
@@ -104,7 +105,7 @@ struct mpq_dir *open_file_dir(struct mpq_dir *root, char **filename, int createn
 
 void add_file(struct mpq_dir *root, char *filename, off_t size, unsigned int fn) {
 	struct mpq_dir *dir = open_file_dir(root, &filename, 1);
-	DPRINTF("file %s\n", filename);
+	//DPRINTF("add_file %s\n", filename);
 	int idx = dir->file_c++;
 	dir->files = realloc(dir->files, sizeof(struct mpq_file) * dir->file_c);
 	dir->files[idx].name = strdup(filename);
@@ -144,6 +145,7 @@ char *listfile;
 
 static int mpq_getattr(const char *path, struct stat *stbuf)
 {
+	DPRINTF("%s %p\n", path, stbuf);
 	memset(stbuf, 0, sizeof(struct stat));
 
 	if (strcmp(path, "/") == 0) {
@@ -194,11 +196,11 @@ static int mpq_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	if (strlen(pbuf) > 0)
 		strcat(pbuf, "/");
 
-	DPRINTF("readdir %s\n", fn);
+	DPRINTF("%s\n", fn);
 	struct mpq_dir *dir = open_file_dir(&root, &fn, 0);
 	if (!dir)
 		return -ENOENT;
-	DPRINTF("readdir %s -> %s\n", path, dir->name);
+	DPRINTF("%s -> %s\n", path, dir->name);
 
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
@@ -270,7 +272,7 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 		/* check if the start is in the middle of a block */
 		uint32_t prefix = (offset % blocksize);
 
-		DPRINTF("mpq_read('%s'): block=%d prefix=%d size=%d bs=%d\n",
+		DPRINTF("'%s': block=%d prefix=%d size=%d bs=%lld\n",
 				path, blocknumber, prefix, size, blocksize);
 		if (prefix != 0) {
 			/* we have to get the middle of a data block manually */
@@ -332,9 +334,11 @@ int main(int argc, char *argv[])
 
 	mpq_parse_lf(archive, listfile, &root);
 
+#if 0
 	int dbg;
 	for (dbg = 0; dbg < root.file_c; dbg++) {
 		DPRINTF(">%s\n", root.files[dbg].name);
 	}
+#endif
 	return fuse_main(argc-1, argv+1, &mpq_oper, NULL);
 }
