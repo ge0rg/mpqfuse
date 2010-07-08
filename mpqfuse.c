@@ -8,9 +8,10 @@
  * $ cc -D_FILE_OFFSET_BITS=64  -lfuse -lmpq  mpqfuse.c   -o mpqfuse
  *
  * Usage:
- * $ ./mpqfuse <archive> [-d] <mountpoint>
+ * $ ./mpqfuse <archive> -s [-d] <mountpoint>
  *
  * THIS CODE IS A HACK. ERROR HANDLING TO BE IMPLEMENTED LATER.
+ * WARNING: mpqfuse is not thread-safe! Never forget the -s parameter!
  */
 
 #include <stdio.h>
