@@ -283,7 +283,7 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 		/* check if the start is in the middle of a block */
 		uint32_t prefix = (offset % blocksize);
 
-		DPRINTF("'%s': block=%d prefix=%d size=%d bs=%lld\n",
+		DPRINTF("'%s': block=%d prefix=%d size=%zd bs=%zd\n",
 				path, blocknumber, prefix, size, blocksize);
 		if (prefix != 0) {
 			/* we have to get the middle of a data block manually */
