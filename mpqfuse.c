@@ -126,7 +126,7 @@ void add_file(struct mpq_dir *root, char *filename, off_t size, unsigned int fn)
 	dir->files[idx].fn = fn;
 }
 
-uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, uint32_t *files_present_mask, struct mpq_dir *dir) {
+uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, uint32_t *files_present_mask, struct mpq_dir *root) {
 	uint32_t files = 0;
 	char *lf_ptr;
 	char *filename = strtok_r(listfile, "\r\n", &lf_ptr);
@@ -135,18 +135,25 @@ uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, uint32_t *files_present_
 		if (libmpq__file_number(a, filename, &fn) != 0) {
 			fprintf(stderr, "orphan %s\n", filename);
 		} else {
-			add_file(&root, filename, 0, fn);
+			add_file(root, filename, 0, fn);
 			/* mark file in the mask */
 			files_present_mask[fn/32] |= (1 << (fn % 32));
 			files++;
 		}
 		filename = strtok_r(NULL, "\r\n", &lf_ptr);
 	}
-	char **i;
-	for (i = implicit; *i; i++)
-		if (libmpq__file_number(a, *i, &fn) == 0)
-			add_file(&root, *i, 0, fn);
 	return files;
+}
+
+void mpq_add_implicit(mpq_archive_s *a, struct mpq_dir *root,
+			uint32_t *files_present_mask) {
+	char **i;
+	uint32_t fn;
+	for (i = implicit; *i; i++)
+		if (libmpq__file_number(a, *i, &fn) == 0) {
+			add_file(root, *i, 0, fn);
+			files_present_mask[fn/32] |= (1 << (fn % 32));
+		}
 }
 
 void mpq_add_hidden_files(mpq_archive_s *archive, struct mpq_dir *root,
@@ -365,6 +372,7 @@ int main(int argc, char *argv[])
 		mpq_parse_lf(archive, listfile, files_present_mask, &root);
 	}
 
+	mpq_add_implicit(archive, &root, files_present_mask);
 	mpq_add_hidden_files(archive, &root, num_files, files_present_mask);
 	free(files_present_mask);
 #if 0
