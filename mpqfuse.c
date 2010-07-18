@@ -126,7 +126,7 @@ void add_file(struct mpq_dir *root, char *filename, off_t size, unsigned int fn)
 	dir->files[idx].fn = fn;
 }
 
-uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, struct mpq_dir *dir) {
+uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, uint32_t *files_present_mask, struct mpq_dir *dir) {
 	unsigned int files;
 
 	init_mpq_dir(dir, NULL);
@@ -143,6 +143,8 @@ uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, struct mpq_dir *dir) {
 			fprintf(stderr, "orphan %s\n", filename);
 		} else {
 			add_file(&root, filename, 0, fn);
+			/* mark file in the mask */
+			files_present_mask[fn/32] |= (1 << (fn % 32));
 		}
 		filename = strtok_r(NULL, "\r\n", &lf_ptr);
 	}
@@ -151,6 +153,19 @@ uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, struct mpq_dir *dir) {
 		if (libmpq__file_number(a, *i, &fn) == 0)
 			add_file(&root, *i, 0, fn);
 	return files;
+}
+
+void mpq_add_hidden_files(mpq_archive_s *archive, struct mpq_dir *root,
+			uint32_t file_count, uint32_t *files_present_mask) {
+	int i;
+	for (i = 0; i < file_count; i++)
+		if (files_present_mask[i/32] & (1 << (i % 32)) == 0) {
+			char fname[13];
+			snprintf(fname, 13, "%08d.xxx", i);
+			libmpq__off_t fsize;
+			CHECK(libmpq__file_unpacked_size(archive, i, &fsize));
+			add_file(root, fname, fsize, i);
+		}
 }
 
 mpq_archive_s *archive;
@@ -333,6 +348,12 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	uint32_t num_files;
+	CHECK(libmpq__archive_files(archive, &num_files));
+
+	/* we need a bitmask to mark files present in the list file */
+	uint32_t *files_present_mask = calloc((num_files + 31)/32, sizeof(uint32_t));
+
 	uint32_t listfile_number;
 	off_t listfile_size;
 	if (libmpq__file_number(archive, "(listfile)", &listfile_number) != 0) {
@@ -345,8 +366,10 @@ int main(int argc, char *argv[])
 	CHECK(libmpq__file_read(archive, listfile_number, (uint8_t*)listfile, listfile_size, NULL));
 	listfile[listfile_size] = '\0';
 
-	mpq_parse_lf(archive, listfile, &root);
+	mpq_parse_lf(archive, listfile, files_present_mask, &root);
 
+	mpq_add_hidden_files(archive, &root, num_files, files_present_mask);
+	free(files_present_mask);
 #if 0
 	int dbg;
 	for (dbg = 0; dbg < root.file_c; dbg++) {
