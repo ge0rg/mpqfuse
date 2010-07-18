@@ -127,14 +127,7 @@ void add_file(struct mpq_dir *root, char *filename, off_t size, unsigned int fn)
 }
 
 uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, uint32_t *files_present_mask, struct mpq_dir *dir) {
-	unsigned int files;
-
-	init_mpq_dir(dir, NULL);
-
-	if (libmpq__archive_files(a, &files) != 0) {
-		fprintf(stderr, "Error getting number of files in archive.\n");
-		return 0;
-	}
+	uint32_t files = 0;
 	char *lf_ptr;
 	char *filename = strtok_r(listfile, "\r\n", &lf_ptr);
 	uint32_t fn;
@@ -145,6 +138,7 @@ uint32_t mpq_parse_lf(mpq_archive_s *a, char *listfile, uint32_t *files_present_
 			add_file(&root, filename, 0, fn);
 			/* mark file in the mask */
 			files_present_mask[fn/32] |= (1 << (fn % 32));
+			files++;
 		}
 		filename = strtok_r(NULL, "\r\n", &lf_ptr);
 	}
@@ -159,12 +153,10 @@ void mpq_add_hidden_files(mpq_archive_s *archive, struct mpq_dir *root,
 			uint32_t file_count, uint32_t *files_present_mask) {
 	int i;
 	for (i = 0; i < file_count; i++)
-		if (files_present_mask[i/32] & (1 << (i % 32)) == 0) {
-			char fname[13];
-			snprintf(fname, 13, "%08d.xxx", i);
-			libmpq__off_t fsize;
-			CHECK(libmpq__file_unpacked_size(archive, i, &fsize));
-			add_file(root, fname, fsize, i);
+		if ((files_present_mask[i/32] & 1 << (i % 32)) == 0) {
+			char fname[64];
+			snprintf(fname, sizeof(fname), "%08d.xxx", i);
+			add_file(root, fname, 0, i);
 		}
 }
 
@@ -360,19 +352,18 @@ int main(int argc, char *argv[])
 	/* we need a bitmask to mark files present in the list file */
 	uint32_t *files_present_mask = calloc((num_files + 31)/32, sizeof(uint32_t));
 
+	init_mpq_dir(&root, NULL);
+
 	uint32_t listfile_number;
 	off_t listfile_size;
-	if (libmpq__file_number(archive, "(listfile)", &listfile_number) != 0) {
-		fprintf(stderr, "No listfile in '%s'.\n", argv[1]);
-		libmpq__archive_close(archive);
-		return 1;
-	}
-	CHECK(libmpq__file_unpacked_size(archive, listfile_number, &listfile_size));
-	listfile = malloc(listfile_size + 1);
-	CHECK(libmpq__file_read(archive, listfile_number, (uint8_t*)listfile, listfile_size, NULL));
-	listfile[listfile_size] = '\0';
+	if (libmpq__file_number(archive, "(listfile)", &listfile_number) == 0) {
+		CHECK(libmpq__file_unpacked_size(archive, listfile_number, &listfile_size));
+		listfile = malloc(listfile_size + 1);
+		CHECK(libmpq__file_read(archive, listfile_number, (uint8_t*)listfile, listfile_size, NULL));
+		listfile[listfile_size] = '\0';
 
-	mpq_parse_lf(archive, listfile, files_present_mask, &root);
+		mpq_parse_lf(archive, listfile, files_present_mask, &root);
+	}
 
 	mpq_add_hidden_files(archive, &root, num_files, files_present_mask);
 	free(files_present_mask);
