@@ -27,6 +27,16 @@
 
 #define MIN(a, b) (((a) < (b))? (a) : (b))
 
+/* libmpq call macro to not fail silently */
+#define CHECK(call) do {		\
+		int __ret = call;	\
+		if (__ret < 0) {	\
+			fprintf(stderr, "MPQFUSE: ERROR CALLING LIBMPQ:\n%s: %d\n", \
+					#call, __ret); \
+			abort();	\
+		}			\
+	} while (0);
+
 #ifdef DEBUG
 #define DPRINTF(fmt, param...) fprintf(stderr, "*** %s: " fmt, __FUNCTION__, ##param)
 #else
@@ -174,7 +184,7 @@ static int mpq_getattr(const char *path, struct stat *stbuf)
 	file = open_file(dir, fn);
 	if (file) {
 		off_t fsize = 0;
-		libmpq__file_unpacked_size(archive, file->fn, &fsize);
+		CHECK(libmpq__file_unpacked_size(archive, file->fn, &fsize));
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = fsize;
@@ -235,14 +245,14 @@ static int mpq_open(const char *path, struct fuse_file_info *fi)
 		return -EACCES;
 
 	fi->fh = file->fn;
-	libmpq__block_open_offset(archive, fi->fh);
+	CHECK(libmpq__block_open_offset(archive, fi->fh));
 
 	return 0;
 }
 
 static int mpq_close(const char *path, struct fuse_file_info *fi)
 {
-	libmpq__block_close_offset(archive, fi->fh);
+	CHECK(libmpq__block_close_offset(archive, fi->fh));
 	return 0;
 }
 
@@ -256,7 +266,7 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 	off_t fsize = 0;
 	size_t copied = 0;
 
-	libmpq__file_unpacked_size(archive, fn, &fsize);
+	CHECK(libmpq__file_unpacked_size(archive, fn, &fsize));
 
 
 	if (offset < fsize) {
@@ -266,7 +276,7 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 
 		off_t blocksize;
 
-		libmpq__block_unpacked_size(archive, fn, 0, &blocksize);
+		CHECK(libmpq__block_unpacked_size(archive, fn, 0, &blocksize));
 
 		uint32_t blocknumber = offset / blocksize;
 
@@ -280,7 +290,7 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 			uint8_t *data = malloc(blocksize);
 			off_t trans, needed;
 
-			libmpq__block_read(archive, fn, blocknumber, data, blocksize, &trans);
+			CHECK(libmpq__block_read(archive, fn, blocknumber, data, blocksize, &trans));
 
 			needed = trans - prefix;
 			if (needed > size)
@@ -292,8 +302,8 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 		while (copied < size) {
 			off_t trans;
 			blocknumber = (offset + copied) / blocksize;
-			libmpq__block_read(archive, fn, blocknumber, (uint8_t*)buf + copied,
-					MIN(blocksize, size - copied), &trans);
+			CHECK(libmpq__block_read(archive, fn, blocknumber, (uint8_t*)buf + copied,
+					MIN(blocksize, size - copied), &trans));
 			copied += trans;
 		}
 	}
@@ -328,9 +338,9 @@ int main(int argc, char *argv[])
 		libmpq__archive_close(archive);
 		return 1;
 	}
-	libmpq__file_unpacked_size(archive, listfile_number, &listfile_size);
+	CHECK(libmpq__file_unpacked_size(archive, listfile_number, &listfile_size));
 	listfile = malloc(listfile_size + 1);
-	libmpq__file_read(archive, listfile_number, (uint8_t*)listfile, listfile_size, NULL);
+	CHECK(libmpq__file_read(archive, listfile_number, (uint8_t*)listfile, listfile_size, NULL));
 	listfile[listfile_size] = '\0';
 
 	mpq_parse_lf(archive, listfile, &root);
