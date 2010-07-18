@@ -28,13 +28,15 @@
 #define MIN(a, b) (((a) < (b))? (a) : (b))
 
 /* libmpq call macro to not fail silently */
-#define CHECK(call) do {		\
-		int __ret = call;	\
-		if (__ret < 0) {	\
-			fprintf(stderr, "MPQFUSE: ERROR CALLING LIBMPQ:\n%s: %d\n", \
-					#call, __ret); \
-			abort();	\
-		}			\
+#define CHECK(call) do {								\
+		int __ret = call;							\
+		if (__ret < 0) {							\
+			fprintf(stderr, "MPQFUSE: ERROR CALLING LIBMPQ (%s:%d):\n"	\
+					"%s = %d\n\t(%s)\n",				\
+					__FILE__, __LINE__,				\
+					#call, __ret, libmpq__strerror(__ret));		\
+			abort();							\
+		}									\
 	} while (0);
 
 #ifdef DEBUG
