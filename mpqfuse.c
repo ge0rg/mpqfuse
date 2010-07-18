@@ -299,12 +299,12 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 
 		/* check if the start is in the middle of a block */
 		uint32_t prefix = (offset % blocksize);
+		uint8_t *data = malloc(blocksize);
 
 		DPRINTF("'%s': block=%d prefix=%d size=%zd bs=%zd\n",
 				path, blocknumber, prefix, size, blocksize);
 		if (prefix != 0) {
 			/* we have to get the middle of a data block manually */
-			uint8_t *data = malloc(blocksize);
 			off_t trans, needed;
 
 			CHECK(libmpq__block_read(archive, fn, blocknumber, data, blocksize, &trans));
@@ -313,16 +313,22 @@ static int mpq_read(const char *path, char *buf, size_t size, off_t offset,
 			if (needed > size)
 				needed = size;
 			memcpy(buf, data + prefix, needed);
-			free(data);
 			copied += needed;
 		}
 		while (copied < size) {
 			off_t trans;
 			blocknumber = (offset + copied) / blocksize;
-			CHECK(libmpq__block_read(archive, fn, blocknumber, (uint8_t*)buf + copied,
-					MIN(blocksize, size - copied), &trans));
+			/* get the block size of current block and extract data */
+			CHECK(libmpq__block_unpacked_size(archive, fn, blocknumber, &blocksize));
+			CHECK(libmpq__block_read(archive, fn, blocknumber, data,
+					blocksize, &trans));
+			assert(trans == blocksize);
+			/* copy data into target buffer */
+			trans = MIN(blocksize, size - copied);
+			memcpy((uint8_t*)buf + copied, data, trans);
 			copied += trans;
 		}
+		free(data);
 	}
 
 	return copied;
